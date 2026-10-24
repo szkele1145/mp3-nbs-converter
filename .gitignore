@@ -1,0 +1,29 @@
+# 构建产物
+dist/
+build/
+*.spec
+
+# 模型文件（体积大，放到 Release 附件）
+models/*.onnx
+
+# 运行时目录
+work/
+output/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+
+# 本地凭据
+.env
+.ghtoken
