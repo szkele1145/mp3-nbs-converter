@@ -476,6 +476,8 @@ const startConvert = async () => {
   form.append('output_nbs', getParam('output_nbs'));
   form.append('output_midi', getParam('output_midi'));
   form.append('output_litematic', getParam('output_litematic'));
+  form.append('auto_preset', getParam('auto_preset'));
+  form.append('allow_builtin_layout', getParam('allow_builtin_layout'));
 
   state.running = true;
   updateConvertButton();
