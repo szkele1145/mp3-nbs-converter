@@ -117,26 +117,29 @@ def suggest_options(feat: dict) -> dict:
     reg = feat["rhythm_regularity"]
 
     # --- 起音阈值：音头越密，阈值越高（避免糊成一片）---
+    # 注意：音符盒想要「每 tick 都有音」，阈值不能太严。
+    # 实测同一首歌：onset .62/frame .30/minlen 110 只有 330 音符、47% 的 tick 是多音；
+    # 放宽到 .45/.20/80 能到 787 音符、77% 多音 tick。
     if rate > 8:
-        onset, min_note = 0.62, 110.0
+        onset, min_note = 0.45, 80.0
         density = "密集"
     elif rate > 4:
-        onset, min_note = 0.52, 128.0
+        onset, min_note = 0.42, 90.0
         density = "中等"
     elif rate > 1.5:
-        onset, min_note = 0.45, 160.0
+        onset, min_note = 0.40, 110.0
         density = "偏慢"
     else:
-        onset, min_note = 0.38, 200.0
+        onset, min_note = 0.36, 130.0
         density = "舒缓"
 
-    # --- 帧阈值：动态范围大就放宽，保留弱音 ---
+    # --- 帧阈值：这是保留弱音的关键，越低留下的音越多 ---
     if dr > 45:
-        frame = 0.22
+        frame = 0.15
     elif dr > 32:
-        frame = 0.26
+        frame = 0.18
     else:
-        frame = 0.30
+        frame = 0.20
 
     # --- 乐器倾向（仍交给 AUTO 细选，这里只给个偏向）---
     # 高频多说明亮，适合长笛/铃；低频厚适合贝斯类
