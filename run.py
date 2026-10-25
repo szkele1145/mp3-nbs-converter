@@ -35,7 +35,7 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog="""示例：
   python run.py
   python run.py --port 9000 --host 127.0.0.1
-  python run.py --cli song.mp3 -o ./out --no-vocals --instrument PIANO
+  python run.py --cli song.mp3 -o ./out --instrument PIANO
 """,
     )
     p.add_argument("--cli", metavar="音频文件", help="以命令行模式转换指定文件")
@@ -47,7 +47,9 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="懒人模式：按音频自动挑起音阈值/帧阈值/最短音符/粒度")
     p.add_argument("--builtin-layout", action="store_true",
                    help="没有 nbs-fractal 排布引擎时，允许用内置简化排布（效果较差）")
-    p.add_argument("--no-vocals", action="store_true", help="不去人声，直接用原始音频")
+    p.add_argument("--vocals", "--separate-vocals", action="store_true",
+                   dest="with_vocals",
+                   help="先分离人声再去掉（音符会变少，默认不开）")
     p.add_argument("--model", default="htdemucs_ft_vocals",
                    help="人声分离模型：htdemucs_ft_vocals（质量最好）/ htdemucs / UVR_MDXNET_Main（最省内存 1.5GB）")
     p.add_argument("--onset", type=float, default=0.5, help="起音阈值（默认 0.5）")
@@ -97,7 +99,7 @@ def _run_cli(args: argparse.Namespace) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     options = ConvertOptions(
-        remove_vocals=not args.no_vocals,
+        remove_vocals=bool(args.with_vocals),
         vocal_model=args.model,
         onset_threshold=args.onset,
         frame_threshold=args.frame,

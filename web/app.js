@@ -767,10 +767,15 @@ const bindEvents = () => {
   // 智能去人声开关文案
   const vocalToggle = $('toggle-vocal');
   const vocalText = $('vocal-switch-text');
+  const vocalHint = $('vocal-hint');
   const updateVocalText = () => {
-    vocalText.textContent = vocalToggle.checked
-      ? '已开启 · 转换前先做人声分离，只保留伴奏'
-      : '已关闭 · 将直接对原始音频做音高识别';
+    const on = vocalToggle.checked;
+    vocalText.textContent = on
+      ? '已开启 · 先分离人声，只保留伴奏（会丢掉主旋律）'
+      : '已关闭 · 直接转录混音，主旋律更完整';
+    if (vocalHint) {
+      vocalHint.textContent = on ? '⚠ 音符数会变少' : '✓ 推荐';
+    }
   };
   vocalToggle.addEventListener('change', updateVocalText);
   updateVocalText();

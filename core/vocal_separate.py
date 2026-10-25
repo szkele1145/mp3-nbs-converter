@@ -163,6 +163,12 @@ def separate_htdemucs(samples: np.ndarray, sr: int, model_id: str = "htdemucs_ft
     window = _transition_window(SEG)
     n_chunks = max(1, int(np.ceil(n / stride)))
 
+    # 输入/输出按模型实际声明来，不要写死：
+    # 现有导出版本都是单输入 'mix' → (1, 4, 2, SEG) 的 stems。
+    in_names = [i.name for i in sess.get_inputs()]
+    feed_two = len(in_names) >= 2
+    out_names = [o.name for o in sess.get_outputs()]
+
     for i in range(n_chunks):
         start = i * stride
         end = min(start + SEG, n)
@@ -170,9 +176,33 @@ def separate_htdemucs(samples: np.ndarray, sr: int, model_id: str = "htdemucs_ft
         chunk_len = chunk.shape[1]
         if chunk_len < SEG:
             chunk = np.pad(chunk, ((0, 0), (0, SEG - chunk_len)), mode="constant")
-        inp, x = _demucs_build_inputs(chunk)
-        outs = sess.run(None, {"input": inp, "x": x})
-        time_out = outs[1][0]
+        if feed_two:
+            inp, x = _demucs_build_inputs(chunk)
+            feed = {in_names[0]: inp, in_names[1]: x}
+        else:
+            # 单输入模型：直接喂波形 (1, 2, SEG)
+            feed = {in_names[0]: chunk[None].astype(np.float32)}
+        outs = sess.run(None, feed)
+
+        # 找时间域的 4 源输出 (1, 4, 2, SEG)；有的导出是 (1,4,2,SEG)，
+        # 也有的是 (4,2,SEG) 或双输出（频谱 + 波形），这里按形状挑。
+        time_out = None
+        for o in outs:
+            arr = np.asarray(o)
+            if arr.ndim == 4 and arr.shape[1] == 4:
+                time_out = arr[0]
+                break
+            if arr.ndim == 3 and arr.shape[0] == 4:
+                time_out = arr
+                break
+        if time_out is None:
+            raise ValueError(
+                f"模型输出形状不认识：{[np.asarray(o).shape for o in outs]}"
+            )
+        if time_out.shape[-1] < chunk_len:
+            time_out = np.pad(
+                time_out, ((0, 0), (0, 0), (0, chunk_len - time_out.shape[-1]))
+            )
         w = window[:chunk_len]
         for s in range(4):
             stems[s, :, start:end] += time_out[s, :, :chunk_len] * w

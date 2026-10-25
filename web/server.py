@@ -481,7 +481,7 @@ def _build_options(form: Dict[str, Any]):
     import dataclasses
 
     desired: Dict[str, Any] = {
-        "remove_vocals": _to_bool(_pick(form, "remove_vocals"), True),
+        "remove_vocals": _to_bool(_pick(form, "remove_vocals"), False),
         "vocal_model": _normalize_model(str(_pick(form, "vocal_model") or "htdemucs_ft_vocals")),
         "onset_threshold": _to_float(_pick(form, "onset_threshold"), 0.5),
         "frame_threshold": _to_float(_pick(form, "frame_threshold"), 0.3),

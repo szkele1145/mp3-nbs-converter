@@ -21,7 +21,7 @@ NBS_TICKS_PER_SEC = 10.0    # NBS 红石刻
 class ConvertOptions:
     """转换参数。"""
 
-    remove_vocals: bool = True
+    remove_vocals: bool = False   # 默认不去人声：人声就是主旋律，去掉会丢一半音符
     vocal_model: str = "htdemucs_ft_vocals"
     onset_threshold: float = 0.5
     frame_threshold: float = 0.3

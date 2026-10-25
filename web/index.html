@@ -96,12 +96,19 @@
       <div class="grid-2">
         <!-- 智能去人声 -->
         <div class="field field-wide">
-          <label class="field-label" for="toggle-vocal">智能去人声（只留伴奏）</label>
-          <label class="switch">
-            <input type="checkbox" id="toggle-vocal" name="separate_vocals" checked />
-            <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
-            <span class="switch-text" id="vocal-switch-text">已开启 · 转换前先做人声分离，只保留伴奏</span>
+          <label class="field-label" for="toggle-vocal">
+            智能去人声（只留伴奏）
+            <span class="field-hint" id="vocal-hint">音符盒建议关闭</span>
           </label>
+          <label class="switch">
+            <input type="checkbox" id="toggle-vocal" name="separate_vocals" />
+            <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+            <span class="switch-text" id="vocal-switch-text">已关闭 · 直接转录混音，主旋律更完整</span>
+          </label>
+          <p class="field-desc">
+            人声往往就是主旋律本身：开启后会把它一并去掉，音符数会明显变少
+            （实测一首歌从 330 个掉到 214 个）。除非你只想要纯伴奏，否则建议关闭。
+          </p>
         </div>
 
         <!-- 分离模型 -->
@@ -276,7 +283,7 @@
 
       <!-- 隐藏参数表单：JS 通过 setParam() 同步实际提交值 -->
       <form id="param-form" hidden aria-hidden="true">
-        <input type="hidden" name="separate_vocals" id="p_separate_vocals" value="1" />
+        <input type="hidden" name="separate_vocals" id="p_separate_vocals" value="0" />
         <input type="hidden" name="model" id="p_model" value="htdemucs_ft_vocals" />
         <input type="hidden" name="threads" id="p_threads" value="0" />
         <input type="hidden" name="max_seconds" id="p_max_seconds" value="0" />
