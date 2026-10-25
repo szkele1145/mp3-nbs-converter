@@ -41,6 +41,20 @@ class ConvertOptions:
     song_name: str = ""
     author: str = "mp3-nbs-converter"
     auto_preset: bool = False     # 懒人模式：按音频自动挑参数
+    allow_builtin_layout: bool = False  # 允许退回内置排布（需用户确认）
+
+
+class LayoutEngineMissing(Exception):
+    """排布引擎不可用，且用户没同意退回内置实现。
+
+    界面捕获它后弹窗询问：下载引擎 / 接受内置排布 / 取消。
+    """
+
+    def __init__(self, reason: str = "") -> None:
+        self.reason = reason
+        super().__init__(
+            f"排布引擎不可用：{reason}" if reason else "排布引擎不可用"
+        )
 
 
 @dataclass
@@ -437,35 +451,73 @@ def convert_audio(
 
     # --- litematic ---
     litematic_path = None
+    layout_engine = "builtin"     # builtin | nbs-fractal
+    layout_error = ""
     if opts.keep_litematic:
         report("生成蓝图", 0.94)
-        mel_layout = _to_layout_notes(melody_notes, main_inst)
-        bass_layout = _to_layout_notes(bass_notes, bass_inst)
-        blocks: dict[tuple[int, int, int], dict] = {}
-        if mel_layout:
-            blocks.update(
-                cl.build_compact_blocks(
-                    mel_layout, coarse=preset_coarse, wrap=opts.wrap, gap=opts.gap
-                )
-            )
-        if bass_layout:
-            bass_blocks = cl.build_compact_blocks(
-                bass_layout, coarse=preset_coarse, wrap=opts.wrap, gap=opts.gap
-            )
-            # 低音轨沿 z 轴偏移，避免与主旋律重叠
-            off_z = (max((p[2] for p in blocks), default=0) + 4) if blocks else 0
-            for (x, y, z), st in bass_blocks.items():
-                blocks[(x, y, z + off_z)] = st
         litematic_path = str(out_path / f"{base}.litematic")
-        with open(litematic_path, "wb") as fh:
-            fh.write(
-                cl.to_litematic(
-                    blocks,
-                    name=song_name,
-                    description="由 MP3 → NBS 转换器生成",
-                    author=opts.author,
+
+        # 优先用 nbs-fractal：结果与 u-u.life/nbs 完全一致。
+        # 它需要先有 .nbs 作为输入。
+        engine_ok = False
+        engine_reason = ""     # 不可用的原因（给界面询问用）
+        if nbs_path:
+            try:
+                from . import engine as _engine
+
+                if _engine.is_available():
+                    ok, msg = _engine.run_compact(
+                        nbs_path, litematic_path,
+                        wrap=opts.wrap, coarse=preset_coarse, gap=opts.gap,
+                    )
+                    if ok:
+                        engine_ok = True
+                        layout_engine = "nbs-fractal"
+                        print(f"[排布] 已用 nbs-fractal 生成（{msg}）")
+                    else:
+                        engine_reason = msg
+                        print(f"[排布] nbs-fractal 失败：{msg}")
+                else:
+                    engine_reason = "未安装排布引擎"
+            except Exception as exc:  # noqa: BLE001
+                engine_reason = f"{type(exc).__name__}: {exc}"
+                print(f"[排布] nbs-fractal 异常：{engine_reason}")
+        else:
+            engine_reason = "本次没有生成 .nbs，排布引擎需要它作为输入"
+
+        if not engine_ok and not opts.allow_builtin_layout:
+            # 不静默降级：直接报错，由界面询问用户是否接受内置排布
+            raise LayoutEngineMissing(engine_reason)
+
+        if not engine_ok:
+            layout_error = engine_reason
+            print(f"[排布] 按用户选择使用内置实现（{engine_reason}）")
+            mel_layout = _to_layout_notes(melody_notes, main_inst)
+            bass_layout = _to_layout_notes(bass_notes, bass_inst)
+            blocks: dict[tuple[int, int, int], dict] = {}
+            if mel_layout:
+                blocks.update(
+                    cl.build_compact_blocks(
+                        mel_layout, coarse=preset_coarse, wrap=opts.wrap, gap=opts.gap
+                    )
                 )
-            )
+            if bass_layout:
+                bass_blocks = cl.build_compact_blocks(
+                    bass_layout, coarse=preset_coarse, wrap=opts.wrap, gap=opts.gap
+                )
+                # 低音轨沿 z 轴偏移，避免与主旋律重叠
+                off_z = (max((p[2] for p in blocks), default=0) + 4) if blocks else 0
+                for (x, y, z), st in bass_blocks.items():
+                    blocks[(x, y, z + off_z)] = st
+            with open(litematic_path, "wb") as fh:
+                fh.write(
+                    cl.to_litematic(
+                        blocks,
+                        name=song_name,
+                        description="由 MP3 → NBS 转换器生成",
+                        author=opts.author,
+                    )
+                )
     report("完成", 1.0)
 
     stats = {
@@ -483,6 +535,8 @@ def convert_audio(
         "auto_preset": bool(opts.auto_preset),
         "preset_reason": preset_reason,
         "preset_onset": round(onset_th, 2) if not opts.auto_preset else None,
+        "layout_engine": layout_engine,
+        "layout_error": layout_error,
         "blocks": len(blocks) if opts.keep_litematic else 0,
         "elapsed": round(time.time() - t_start, 2),
         "sample_rate": sr,

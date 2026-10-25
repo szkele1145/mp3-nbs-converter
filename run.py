@@ -45,6 +45,8 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-browser", action="store_true", help="启动服务时不自动打开浏览器")
     p.add_argument("--auto-preset", action="store_true",
                    help="懒人模式：按音频自动挑起音阈值/帧阈值/最短音符/粒度")
+    p.add_argument("--builtin-layout", action="store_true",
+                   help="没有 nbs-fractal 排布引擎时，允许用内置简化排布（效果较差）")
     p.add_argument("--no-vocals", action="store_true", help="不去人声，直接用原始音频")
     p.add_argument("--model", default="htdemucs_ft_vocals",
                    help="人声分离模型：htdemucs_ft_vocals（质量最好）/ htdemucs / UVR_MDXNET_Main（最省内存 1.5GB）")
@@ -111,6 +113,7 @@ def _run_cli(args: argparse.Namespace) -> int:
         keep_litematic=not args.no_litematic,
         song_name=src.stem,
         auto_preset=args.auto_preset,
+        allow_builtin_layout=args.builtin_layout,
     )
 
     last_stage = ""

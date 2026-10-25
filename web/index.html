@@ -261,6 +261,16 @@
               <span>输出 .litematic 蓝图</span>
             </label>
           </div>
+          <!-- 排布引擎缺失时的提示与下载 -->
+          <div class="engine-warn hidden" id="engine-warn">
+            <p class="engine-warn-text" id="engine-warn-text">
+              ⚠️ 未检测到排布引擎 nbs-fractal。安装后生成的投影与
+              <a href="https://u-u.life/nbs/#compact" target="_blank" rel="noopener noreferrer">u-u.life/nbs</a>
+              完全一致；不安装则使用内置简化排布。
+            </p>
+            <button type="button" class="btn btn-sm" id="btn-engine-download">⬇️ 自动下载排布引擎</button>
+            <span class="engine-status" id="engine-status"></span>
+          </div>
         </div>
       </div>
 
@@ -280,6 +290,8 @@
         <input type="hidden" name="output_nbs" id="p_output_nbs" value="1" />
         <input type="hidden" name="output_midi" id="p_output_midi" value="1" />
         <input type="hidden" name="output_litematic" id="p_output_litematic" value="1" />
+        <input type="hidden" name="auto_preset" id="p_auto_preset" value="1" />
+        <input type="hidden" name="allow_builtin_layout" id="p_allow_builtin_layout" value="0" />
       </form>
     </section>
 

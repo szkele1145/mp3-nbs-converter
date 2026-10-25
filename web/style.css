@@ -1110,3 +1110,25 @@ audio {
 
 /* 懒人模式下隐藏专业参数 */
 body.lazy-mode .pro-only { display: none !important; }
+
+/* ---------- 排布引擎下载提示 ---------- */
+.engine-warn {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid #f0c36d;
+  border-radius: 10px;
+  background: #fffbf0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.engine-warn-text { margin: 0 0 10px; }
+.engine-warn-text a { color: var(--accent, #4a7cf7); }
+
+.engine-status {
+  margin-left: 10px;
+  font-size: 12px;
+  opacity: .75;
+}
+
+.engine-warn .btn.is-busy { opacity: .6; pointer-events: none; }

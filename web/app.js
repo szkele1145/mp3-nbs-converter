@@ -13,6 +13,8 @@ const API = {
   progress: '/api/progress',
   models: '/api/models',
   health: '/api/health',
+  engine: '/api/engine',
+  engineDownload: '/api/engine/download',
   download: (kind) => `/api/download/${kind}`,
 };
 
@@ -171,6 +173,8 @@ const state = {
   running: false, // 是否正在转换
   lastResult: null, // 最近一次转换结果
   lazyMode: true, // true = 懒人模式（参数自动），false = 专业模式
+  allowBuiltinLayout: false, // 用户是否已确认接受内置排布
+  engineInstalled: null, // 排布引擎是否可用；null = 未检测
 };
 
 /* ------------------------------------------------------------------
@@ -196,6 +200,7 @@ const getParam = (name) => {
 /** 把当前界面状态整体同步到隐藏表单 */
 const syncParams = () => {
   setParam('auto_preset', state.lazyMode ? '1' : '0');
+  setParam('allow_builtin_layout', state.allowBuiltinLayout ? '1' : '0');
   setParam('separate_vocals', $('toggle-vocal').checked ? '1' : '0');
   setParam('model', $('select-model').value);
   setParam('threads', $('number-threads').value);
@@ -258,8 +263,93 @@ const loadModels = async () => {
 };
 
 /* ------------------------------------------------------------------
-   文件选择 / 拖拽 / 粘贴
+   排布引擎（nbs-fractal）：检测缺失 → 一键下载
    ------------------------------------------------------------------ */
+
+/** 刷新引擎状态并决定是否显示提示条 */
+const refreshEngine = async () => {
+  const warn = $('engine-warn');
+  const status = $('engine-status');
+  if (!warn) return;
+  try {
+    const res = await request(API.engine);
+    const data = await res.json().catch(() => ({}));
+    state.engineInstalled = Boolean(data && data.installed);
+  } catch {
+    state.engineInstalled = null;
+  }
+  const show = state.engineInstalled === false;
+  warn.classList.toggle('hidden', !show);
+  if (status && state.engineInstalled === true) {
+    status.textContent = '✅ 已安装，投影与官方一致';
+  }
+};
+
+/**
+ * 排布引擎不可用时询问用户：
+ *   - 确定 → 立即下载引擎（投影与官方一致）
+ *   - 取消 → 再用内置排布（效果较差、不稳定）
+ */
+const askEngineFallback = async (reason) => {
+  const hint = reason ? '\n\n原因：' + reason : '';
+  const msg =
+    '生成 .litematic 需要 nbs-fractal 排布引擎，当前不可用。' + hint +
+    '\n\n点「确定」立即下载引擎（推荐，投影与 u-u.life/nbs 完全一致）；' +
+    '\n点「取消」改用内置排布——效果较差、不稳定。';
+
+  const wantDownload = window.confirm(msg);
+  if (wantDownload) {
+    await downloadEngine();
+    if (state.engineInstalled === true) {
+      $('action-note').textContent = '引擎已就绪，请重新点击「开始转换」。';
+      showProgress(0, '引擎已就绪', '重新转换即可生成与官方一致的投影');
+    }
+    return;
+  }
+
+  const useBuiltin = window.confirm(
+    '确定使用内置排布吗？\n\n' +
+    '效果较差、格式不稳定，可能与 Litematica 不完全兼容。\n' +
+    '建议先下载引擎再转换。'
+  );
+  if (!useBuiltin) {
+    $('action-note').textContent = '已取消。建议下载排布引擎后重试。';
+    return;
+  }
+
+  state.allowBuiltinLayout = true;
+  setParam('allow_builtin_layout', '1');
+  $('action-note').textContent = '将使用内置排布，重新开始转换…';
+  setTimeout(() => { startConvert(); }, 300);
+};
+
+/** 点按钮下载引擎 */
+const downloadEngine = async () => {
+  const btn = $('btn-engine-download');
+  const status = $('engine-status');
+  if (!btn) return;
+  btn.classList.add('is-busy');
+  const oldText = btn.textContent;
+  btn.textContent = '⏳ 正在下载…';
+  if (status) status.textContent = '';
+  try {
+    const res = await request(API.engineDownload, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (data && data.ok) {
+      if (status) status.textContent = '✅ ' + (data.message || '下载完成');
+      state.engineInstalled = true;
+      $('engine-warn').classList.add('hidden');
+      $('action-note').textContent = '排布引擎已安装，下次转换的投影与官方一致。';
+    } else {
+      if (status) status.textContent = '❌ ' + ((data && data.message) || '下载失败');
+    }
+  } catch (err) {
+    if (status) status.textContent = '❌ ' + friendlyError(err);
+  } finally {
+    btn.classList.remove('is-busy');
+    btn.textContent = oldText;
+  }
+};
 
 /** 校验文件类型与大小 */
 const validateFile = (file) => {
@@ -443,6 +533,15 @@ const pollProgress = async () => {
       return;
     }
 
+    if (status === 'need_engine') {
+      stopPolling();
+      state.running = false;
+      updateConvertButton();
+      showProgress(progress, '需要排布引擎', (data && data.message) || '');
+      await askEngineFallback((data && data.message) || '');
+      return;
+    }
+
     if (status === 'error') {
       stopPolling();
       state.running = false;
@@ -602,6 +701,10 @@ const bindEvents = () => {
   if (lazyBtn) lazyBtn.addEventListener('click', () => setMode(true));
   if (proBtn) proBtn.addEventListener('click', () => setMode(false));
   setMode(true); // 默认懒人模式
+
+  // 排布引擎下载按钮
+  const engineBtn = $('btn-engine-download');
+  if (engineBtn) engineBtn.addEventListener('click', downloadEngine);
 
   // 点击选择
   dropzone.addEventListener('click', () => fileInput.click());
@@ -768,6 +871,7 @@ const init = () => {
   updateConvertButton();
   checkHealth();
   loadModels();
+  refreshEngine();
 };
 
 if (document.readyState === 'loading') {

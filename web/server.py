@@ -378,6 +378,17 @@ class JobState:
                 return max(1.0, rem)
         return None
 
+    def fail_engine(self, job_id: str, reason: str) -> None:
+        """排布引擎不可用：标记成待用户确认状态，而不是普通失败。"""
+        with self._lock:
+            if self.job_id and job_id and self.job_id != job_id:
+                return
+            self.status = "need_engine"
+            self.stage = "需要排布引擎"
+            self.message = reason or "本地排布引擎不可用"
+            self.error = None
+            self.eta_seconds = None
+
     def finish(self, job_id: str, result: Dict[str, Any],
                files: Dict[str, str], names: Dict[str, str]) -> None:
         with self._lock:
@@ -479,6 +490,7 @@ def _build_options(form: Dict[str, Any]):
         "instrument": str(_pick(form, "instrument") or "AUTO"),
         "bass_instrument": str(_pick(form, "bass_instrument") or "AUTO"),
         "auto_preset": _to_bool(_pick(form, "auto_preset"), False),
+        "allow_builtin_layout": _to_bool(_pick(form, "allow_builtin_layout"), False),
         "coarse": _to_int(_pick(form, "coarse"), 0),
         "wrap": _to_int(_pick(form, "wrap"), 0),
         "gap": _to_int(_pick(form, "gap"), 0),
@@ -541,6 +553,13 @@ def _run_conversion(job_id: str, input_path: str, out_dir: str, form: Dict[str, 
         result, files, names = _collect_outputs(result_obj, job_id)
         JOB.finish(job_id, result, files, names)
     except Exception as exc:  # noqa: BLE001 - 需要把任何异常转成友好提示
+        # 排布引擎缺失：不当作普通错误，标出类型让界面弹窗询问
+        from core.pipeline import LayoutEngineMissing
+
+        if isinstance(exc, LayoutEngineMissing):
+            print(f"[排布] 引擎不可用，等待用户选择：{exc.reason}")
+            JOB.fail_engine(job_id, exc.reason)
+            return
         traceback.print_exc()
         JOB.fail(job_id, _friendly_error(exc))
     finally:
@@ -658,6 +677,29 @@ def index() -> FileResponse:
 def health() -> Dict[str, Any]:
     """健康检查。"""
     return {"ok": True, "version": VERSION}
+
+
+@app.get("/api/engine")
+def engine_status() -> Dict[str, Any]:
+    """排布引擎（nbs-fractal）状态。"""
+    from core import engine as _engine
+
+    path = _engine.find_engine()
+    return {
+        "installed": path is not None,
+        "path": path or "",
+        "expected": str(_engine.engine_path()),
+        "urls": _engine.ENGINE_URLS,
+    }
+
+
+@app.post("/api/engine/download")
+def engine_download() -> Dict[str, Any]:
+    """下载排布引擎到 tools/。"""
+    from core import engine as _engine
+
+    ok, msg = _engine.download()
+    return {"ok": ok, "message": msg, "installed": _engine.is_available()}
 
 
 @app.get("/api/models")
