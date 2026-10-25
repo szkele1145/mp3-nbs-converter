@@ -477,6 +477,10 @@ const startConvert = async () => {
   form.append('output_midi', getParam('output_midi'));
   form.append('output_litematic', getParam('output_litematic'));
   form.append('auto_preset', getParam('auto_preset'));
+  const richToggle = document.getElementById('toggle-rich');
+  const harmonyToggle = document.getElementById('toggle-harmony');
+  form.append('rich_voicing', richToggle && richToggle.checked ? '1' : '0');
+  form.append('harmony', harmonyToggle && harmonyToggle.checked ? '1' : '0');
   form.append('allow_builtin_layout', getParam('allow_builtin_layout'));
 
   state.running = true;
@@ -777,8 +781,28 @@ const bindEvents = () => {
   $('remove-file').addEventListener('click', clearFile);
 
   // 智能去人声开关文案
-  const vocalToggle = $('toggle-vocal');
-  const vocalText = $('vocal-switch-text');
+  const richToggle = $('toggle-rich');
+  const harmonyToggle = $('toggle-harmony');
+  const richText = $('rich-switch-text');
+  const harmonyText = $('harmony-switch-text');
+  if (richToggle) {
+    const updateRich = () => {
+      richText.textContent = richToggle.checked
+        ? '已开启 · 按声源挑选主旋律、低音和和声，更有层次'
+        : '已关闭 · 回退到常规多声部拼接';
+    };
+    richToggle.addEventListener('change', updateRich);
+    updateRich();
+  }
+  if (harmonyToggle) {
+    const updateHarmony = () => {
+      harmonyText.textContent = harmonyToggle.checked
+        ? '已开启 · 叠加五度/八度，声音更厚'
+        : '已关闭 · 只用音频里真实存在的音';
+    };
+    harmonyToggle.addEventListener('change', updateHarmony);
+    updateHarmony();
+  }
   const vocalHint = $('vocal-hint');
   const updateVocalText = () => {
     const on = vocalToggle.checked;

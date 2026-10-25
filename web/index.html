@@ -94,6 +94,33 @@
       </p>
 
       <div class="grid-2">
+        <!-- 丰富配器 -->
+        <div class="field field-wide">
+          <label class="field-label" for="toggle-rich">
+            丰富配器（主旋律 + 低音 + 和声按时间对齐）
+            <span class="field-hint">推荐开启</span>
+          </label>
+          <label class="switch">
+            <input type="checkbox" id="toggle-rich" name="rich_voicing" checked />
+            <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+            <span class="switch-text" id="rich-switch-text">已开启 · 按声源挑选主旋律、低音和和声，更有层次</span>
+          </label>
+          <p class="field-desc">关闭后回退到「常规多声部」（四源各自转录后直接拼接）。</p>
+        </div>
+
+        <!-- 和声增强 -->
+        <div class="field field-wide">
+          <label class="field-label" for="toggle-harmony">
+            和声增强（叠加五度/八度）
+            <span class="field-hint">默认关闭</span>
+          </label>
+          <label class="switch">
+            <input type="checkbox" id="toggle-harmony" name="harmony" />
+            <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+            <span class="switch-text" id="harmony-switch-text">已关闭 · 只用音频里真实存在的音</span>
+          </label>
+          <p class="field-desc">算式补音，并非从音频里听出来的真实声部。开启后会更厚但可能不够贴近原曲。</p>
+        </div>
         <!-- 智能去人声 -->
         <div class="field field-wide">
           <label class="field-label" for="toggle-vocal">
@@ -110,6 +137,7 @@
             （实测一首歌从 330 个掉到 214 个）。除非你只想要纯伴奏，否则建议关闭。
           </p>
         </div>
+        
 
         <!-- 分离模型 -->
         <div class="field field-wide">
