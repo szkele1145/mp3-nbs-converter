@@ -153,8 +153,10 @@ def write_nbs_file(
         tempo=tempo,
         time_signature=time_signature,
     )
-    # NBS 的 tempo 是"每秒 tick 数"，pynbs new_file 的 tempo 参数语义同上
-    f.header.tempo = int(round(tempo))
+    # NBS 的 tempo = 每秒 tick 数。pynbs 内部按 tempo*100 存成 SHORT，
+    # 所以小数也支持（官方作品就有 11.0 / 12.0）。
+    # 之前这里 int() 取整，把精度锁死在整数上，时间分辨率损失很大。
+    f.header.tempo = float(tempo)
 
     # new_file 自带一个占位 Layer(0)，清空后按实际轨道重建
     f.layers.clear()

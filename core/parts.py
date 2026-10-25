@@ -15,6 +15,9 @@ from __future__ import annotations
 
 import numpy as np
 
+#: 每秒 tick 数（与 pipeline.NBS_TICKS_PER_SEC 保持一致）
+TICKS_PER_SEC = 20.0
+
 #: 每个源对应的候选乐器（按优先级，第一个是默认）
 PART_INSTRUMENTS = {
     "drums": ["BASS_DRUM", "SNARE_DRUM", "CLICK"],
@@ -148,7 +151,7 @@ def split_drum_bands(notes: list) -> list[tuple[str, list]]:
     }
     for note in notes:
         v = float(note.velocity or 0.5)
-        tick = int(round(float(note.start) * 10))
+        tick = int(round(float(note.start) * TICKS_PER_SEC))
         on_beat = (tick % 8) == 0        # 大约每 0.8 秒一个强拍
         half_beat = (tick % 4) == 0
 
@@ -217,7 +220,7 @@ def enrich_harmony(notes: list, max_extra_per_tick: int = 3) -> list[tuple[str, 
     # 按 tick 分组，控制每 tick 最多补几个，防止糊成一片
     by_tick: dict[int, list] = {}
     for n in notes:
-        by_tick.setdefault(int(round(float(n.start) * 10)), []).append(n)
+        by_tick.setdefault(int(round(float(n.start) * TICKS_PER_SEC)), []).append(n)
 
     out: dict[str, list] = {}
     for tick, group in by_tick.items():
@@ -252,18 +255,20 @@ def pick_part_instrument(name: str, notes: list) -> str:
     """给某个声部选乐器：按音域在中位音高附近挑候选里最合适的。"""
     from . import nbs_writer
 
-    cands = PART_INSTRUMENTS.get(name, ["HARP"])
+    # rich_voicing 的声部名带 _rich 后缀，剥掉后再匹配
+    base = name[:-5] if name.endswith("_rich") else name
+    cands = PART_INSTRUMENTS.get(base, ["HARP"])
     if not notes:
         return cands[0]
 
     midis = sorted(int(n.midi) for n in notes)
     median = midis[len(midis) // 2]
 
-    if name == "drums":
+    if base == "drums":
         return cands[0]
-    if name == "bass":
+    if base == "bass":
         return "DOUBLE_BASS" if median < 48 else "BASS"
-    if name == "vocals":
+    if base == "vocals":
         return "FLUTE" if median > 72 else "CHIME"
     # other
     if median < 60:

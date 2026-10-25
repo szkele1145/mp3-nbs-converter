@@ -14,7 +14,7 @@ from . import nbs_writer, midi_writer
 from .audio_io import Audio, decode, write_wav
 
 GAME_TICKS_PER_SEC = 20.0   # Minecraft 游戏刻
-NBS_TICKS_PER_SEC = 10.0    # NBS 红石刻
+NBS_TICKS_PER_SEC = 20.0   # 每秒 tick 数（默认 20，比老标准 10 精细一倍）
 
 
 @dataclass
@@ -43,6 +43,7 @@ class ConvertOptions:
     auto_preset: bool = False     # 懒人模式：按音频自动挑参数
     quantize: bool = True         # 把音符吸附到节拍网格（听感更整齐）
     multi_part: bool = True       # 多声部转录：四源分离后各配音色，乐器更多、每 tick 更密
+    rich_voicing: bool = True     # 丰富配器：提取主旋律(最高音)+低音(最低音)+和声按时间对齐拼接（更适合节奏型歌曲）
     harmony: bool = False         # 和声增强：给音符叠五度/八度，密度更高但可能不准
     allow_builtin_layout: bool = False  # 允许退回内置排布（需用户确认）
 
@@ -307,20 +308,80 @@ def convert_audio(
         parts_result = None
         if opts.multi_part:
             from . import parts as _parts
+            if getattr(opts, "rich_voicing", True):
+                from . import vocal_separate as vs
+                from . import voicing_rich
+                from .transcribe import transcribe
 
-            print("[多声部] 分离 drums/bass/other/vocals 并分别转录…")
-            parts_result = _parts.transcribe_parts(
-                instrumental, sr,
-                onset_threshold=onset_th,
-                frame_threshold=frame_th,
-                min_note_ms=min_note,
-            )
-            if parts_result:
-                total_n = sum(len(ns) for _, ns in parts_result)
-                desc = " / ".join(f"{_parts.part_label(k)}{len(ns)}" for k, ns in parts_result)
-                print(f"[多声部] {len(parts_result)} 个声部，共 {total_n} 个音符（{desc}）")
+                print("[丰富配器] 四源分离 → 主旋律(最高)+低音(最低)+和声 按时间对齐拼接…")
+                try:
+                    stems = _parts.separate_stems(instrumental, sr)
+                    if stems is None:
+                        raise RuntimeError("四源分离不可用")
+                    names = ["drums", "bass", "other", "vocals"]
+                    stems_notes = {}
+                    for nm in names:
+                        if nm not in stems:
+                            continue
+                        m = stems[nm].mean(axis=0)
+                        tr = transcribe(
+                            m,
+                            sr,
+                            prefer_model=True,
+                            onset_threshold=onset_th,
+                            frame_threshold=frame_th,
+                            minimum_note_length_ms=min_note,
+                        )
+                        stems_notes[nm] = tr.notes
+                    parts_result = voicing_rich.build_rich_parts(stems_notes, tps=NBS_TICKS_PER_SEC)
+                    if parts_result:
+                        total_n = sum(len(ns) for _, ns in parts_result)
+                        desc = " / ".join(
+                            f"{_parts.part_label(k)}{len(ns)}" for k, ns in parts_result
+                        )
+                        print(
+                            f"[丰富配器] {len(parts_result)} 个声部，共 {total_n} 个音符（{desc}）"
+                        )
+                    else:
+                        print("[丰富配器] 效果不佳，回退到常规多声部")
+                        parts_result = _parts.transcribe_parts(
+                            instrumental,
+                            sr,
+                            onset_threshold=onset_th,
+                            frame_threshold=frame_th,
+                            min_note_ms=min_note,
+                        )
+                except Exception as exc:  # noqa: BLE001
+                    print(f"[丰富配器] 失败：{exc}，回退到常规多声部")
+                    try:
+                        parts_result = _parts.transcribe_parts(
+                            instrumental,
+                            sr,
+                            onset_threshold=onset_th,
+                            frame_threshold=frame_th,
+                            min_note_ms=min_note,
+                        )
+                    except Exception:
+                        parts_result = None
             else:
-                print("[多声部] 四源模型不可用，退回单旋律转录")
+                print("[多声部] 分离 drums/bass/other/vocals 并分别转录…")
+                parts_result = _parts.transcribe_parts(
+                    instrumental,
+                    sr,
+                    onset_threshold=onset_th,
+                    frame_threshold=frame_th,
+                    min_note_ms=min_note,
+                )
+                if parts_result:
+                    total_n = sum(len(ns) for _, ns in parts_result)
+                    desc = " / ".join(
+                        f"{_parts.part_label(k)}{len(ns)}" for k, ns in parts_result
+                    )
+                    print(
+                        f"[多声部] {len(parts_result)} 个声部，共 {total_n} 个音符（{desc}）"
+                    )
+                else:
+                    print("[多声部] 四源模型不可用，退回单旋律转录")
 
         if parts_result:
             note_parts = parts_result
@@ -362,6 +423,7 @@ def convert_audio(
             notes = _qz.quantize_notes(
                 notes,
                 bpm=opts.tempo_bpm or _qz.estimate_bpm(instrumental, sr),
+                ticks_per_sec=NBS_TICKS_PER_SEC,
                 subdivisions=2,
             )
             print(f"[量化] {before} → {len(notes)} 个音符（吸附到节拍网格）")
@@ -427,7 +489,7 @@ def convert_audio(
                 inst = (band_inst or harm_inst
                         or _parts.pick_part_instrument(pname, pnotes))
                 used_insts.append(inst)
-                is_drum = band_inst is not None
+                is_drum = band_inst is not None or pname.startswith("drums_")
                 # 打击类固定用一个音高（鼓在音乐里没有音高概念），
                 # 旋律类才按 MIDI 折叠到音符盒音域。
                 drum_key = 45   # 音符盒中音区，做打击音色足够

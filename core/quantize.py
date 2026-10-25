@@ -75,7 +75,7 @@ def estimate_bpm(samples: np.ndarray, sr: int, min_bpm: float = 60.0,
 def quantize_notes(
     notes: list,
     bpm: float = 0.0,
-    ticks_per_sec: float = 10.0,
+    ticks_per_sec: float = 20.0,
     subdivisions: int = 1,
     tolerance_ticks: float = 0.6,
 ) -> list:
