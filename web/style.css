@@ -1132,3 +1132,8 @@ body.lazy-mode .pro-only { display: none !important; }
 }
 
 .engine-warn .btn.is-busy { opacity: .6; pointer-events: none; }
+
+/* ---------- 音符盒试听占满整行 ---------- */
+.preview-item-wide {
+  grid-column: 1 / -1;
+}

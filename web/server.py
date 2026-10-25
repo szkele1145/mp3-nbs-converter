@@ -64,6 +64,7 @@ DOWNLOAD_KINDS: Dict[str, tuple] = {
     "midi": ("audio/midi", ".mid"),
     "litematic": ("application/octet-stream", ".litematic"),
     "instrumental": ("audio/wav", ".wav"),
+    "preview": ("audio/wav", ".wav"),          # NBS 合成试听
 }
 
 #: 乐器 id → 中文名（不 import core.compact_layout，避免耦合）
@@ -632,6 +633,29 @@ def _collect_outputs(result_obj: Any, job_id: str):
 
     if sizes:
         display["sizes"] = sizes
+
+    # --- 试听：把 nbs 合成成 wav，方便在网页里直接听效果 ---
+    nbs_path = files.get("nbs")
+    if nbs_path:
+        try:
+            from core.preview import render_nbs_to_wav
+
+            out_dir = os.path.dirname(nbs_path)
+            preview_path = os.path.join(out_dir, f"{job_id}_preview.wav")
+            ok, msg = render_nbs_to_wav(nbs_path, preview_path)
+            if ok and os.path.isfile(preview_path):
+                files["preview"] = preview_path
+                names["preview"] = _safe_filename(f"{job_id}_preview") + ".wav"
+                display["preview"] = names["preview"]
+                try:
+                    sizes["preview"] = os.path.getsize(preview_path)
+                except OSError:
+                    pass
+                print(f"[试听] 已生成 {msg}")
+            else:
+                print(f"[试听] 渲染失败：{msg}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[试听] 异常：{type(exc).__name__}: {exc}")
 
     stats = getattr(result_obj, "stats", None)
     stats = dict(stats) if isinstance(stats, dict) else {}

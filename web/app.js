@@ -664,6 +664,18 @@ const renderResult = (result) => {
   instrumental.src = API.download('instrumental');
   instrumental.load();
 
+  // 音符盒试听（由 .nbs 合成）
+  const previewAudio = $('audio-preview');
+  if (previewAudio) {
+    if (state.lastResult.preview) {
+      previewAudio.src = API.download('preview') + '?t=' + Date.now();
+      previewAudio.load();
+    } else {
+      previewAudio.removeAttribute('src');
+      previewAudio.load();
+    }
+  }
+
   $('result-section').classList.remove('hidden');
   $('result-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
