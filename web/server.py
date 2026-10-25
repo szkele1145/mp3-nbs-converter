@@ -492,7 +492,7 @@ def _build_options(form: Dict[str, Any]):
         "auto_preset": _to_bool(_pick(form, "auto_preset"), False),
         "allow_builtin_layout": _to_bool(_pick(form, "allow_builtin_layout"), False),
         "coarse": _to_int(_pick(form, "coarse"), 0),
-        "wrap": _to_int(_pick(form, "wrap"), 0),
+        "wrap": _to_int(_pick(form, "wrap"), 16),
         "gap": _to_int(_pick(form, "gap"), 0),
         "max_seconds": _to_float(_pick(form, "max_seconds"), 0.0),
         "bass_split_midi": _to_int(_pick(form, "bass_split_midi"), 55),

@@ -30,7 +30,7 @@ class ConvertOptions:
     instrument: str = "AUTO"
     bass_instrument: str = "AUTO"
     coarse: int = 0
-    wrap: int = 0
+    wrap: int = 16      # 每行最大列数（与 u-u.life/nbs 默认一致）
     gap: int = 0
     max_seconds: float = 0.0
     bass_split_midi: int = 55
@@ -453,6 +453,7 @@ def convert_audio(
     litematic_path = None
     layout_engine = "builtin"     # builtin | nbs-fractal
     layout_error = ""
+    block_count = 0
     if opts.keep_litematic:
         report("生成蓝图", 0.94)
         litematic_path = str(out_path / f"{base}.litematic")
@@ -518,6 +519,11 @@ def convert_audio(
                         author=opts.author,
                     )
                 )
+            block_count = len(blocks)
+        else:
+            # 引擎生成时没有本地方块表，方块数从产物文件大小估算不了，
+            # 记为 0（界面显示"由引擎生成"即可）
+            block_count = 0
     report("完成", 1.0)
 
     stats = {
@@ -537,7 +543,7 @@ def convert_audio(
         "preset_onset": round(onset_th, 2) if not opts.auto_preset else None,
         "layout_engine": layout_engine,
         "layout_error": layout_error,
-        "blocks": len(blocks) if opts.keep_litematic else 0,
+        "blocks": block_count,
         "elapsed": round(time.time() - t_start, 2),
         "sample_rate": sr,
     }

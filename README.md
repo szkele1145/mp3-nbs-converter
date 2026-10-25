@@ -114,17 +114,30 @@ python run.py --cli song.mp3 -o ./out --threads 8 --high-memory --normal-priorit
 装了 Rust 后一条命令就能编：
 
 ```bash
-# 1. 安装 Rust（Windows）
-winget install Rustlang.Rustup
-# 或者从 https://rustup.rs 下载安装器
+# 1. 安装 Rust
+#    官方源在国内常常连不上，用中科大镜像：
+#    先下载 rustup-init.exe：
+#      https://mirrors.ustc.edu.cn/rust-static/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe
+#    然后设置环境变量再运行：
+set RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static
+rustup-init.exe -y --default-toolchain stable --profile minimal
 
-# 2. 编译并安装
-cargo install nbs-fractal --root ./tools
+# 2. 配置 crates 镜像（避免 crates.io 直连失败）
+#    在 %USERPROFILE%\.cargo\config.toml 里写：
+#      [source.crates-io]
+#      replace-with = 'ustc'
+#      [source.ustc]
+#      registry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"
 
-# 3. 编好的程序在 tools/bin/nbs-fractal.exe
-#    把它移到 tools/ 目录下即可
+# 3. 编译并安装到 tools/
+cargo install nbs-fractal --version ">=0.1.2, <0.2.0" --root ./tools
+
+# 4. 编好的程序在 tools/bin/nbs-fractal.exe
 move tools\bin\nbs-fractal.exe tools\
 ```
+
+编译需要 MSVC 构建工具（Visual Studio Build Tools 的「使用 C++ 的桌面开发」）。
+没有的话 rustup 会提示 `installing msvc toolchain without its prerequisites`。
 
 **方式三：手动放置**
 

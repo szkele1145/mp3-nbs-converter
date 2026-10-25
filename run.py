@@ -56,7 +56,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--instrument", default="AUTO", help="主旋律乐器（默认 AUTO 按音域自动匹配）")
     p.add_argument("--bass-instrument", default="AUTO", help="低音轨乐器（默认 AUTO 按音域自动匹配）")
     p.add_argument("--coarse", type=int, default=0, help="中继器粒度 0(不限)/1-4")
-    p.add_argument("--wrap", type=int, default=0, help="每行最大列数，0 = 不换行")
+    p.add_argument("--wrap", type=int, default=16, help="每行最大列数（默认 16，与 u-u.life/nbs 一致；0 = 不换行）")
     p.add_argument("--gap", type=int, default=0, help="轨道间距")
     p.add_argument("--max-seconds", type=float, default=0.0, help="只转换前 N 秒，0 = 不限")
     p.add_argument("--no-nbs", action="store_true", help="不输出 .nbs")
