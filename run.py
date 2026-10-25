@@ -133,6 +133,21 @@ def _run_cli(args: argparse.Namespace) -> int:
     try:
         result = convert_audio(str(src), str(out_dir), options, progress)
     except Exception as exc:  # noqa: BLE001
+        from core.pipeline import LayoutEngineMissing
+
+        if isinstance(exc, LayoutEngineMissing):
+            print("\n" + "=" * 60, file=sys.stderr)
+            print("缺少排布引擎（生成 .litematic 需要）", file=sys.stderr)
+            print(f"原因：{exc.reason}", file=sys.stderr)
+            print("\n两种解决方式：", file=sys.stderr)
+            print("  1) 下载引擎（推荐，投影与 u-u.life/nbs 一致）：", file=sys.stderr)
+            print("       在 Web 界面里点「自动下载排布引擎」", file=sys.stderr)
+            print("     或手动把 nbs-fractal.exe 放进 tools/ 目录", file=sys.stderr)
+            print("  2) 接受内置排布（效果较差、不稳定）：", file=sys.stderr)
+            print(f"       python run.py --cli \"{src}\" -o {out_dir} --builtin-layout",
+                  file=sys.stderr)
+            print("=" * 60, file=sys.stderr)
+            return 1
         print(f"[错误] 转换失败：{exc}", file=sys.stderr)
         return 1
     finally:
