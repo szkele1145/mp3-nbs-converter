@@ -459,6 +459,8 @@ FORM_ALIASES: Dict[str, List[str]] = {
     "keep_nbs": ["keep_nbs", "output_nbs", "nbs"],
     "keep_midi": ["keep_midi", "output_midi", "midi"],
     "keep_litematic": ["keep_litematic", "output_litematic", "litematic"],
+    "rich_voicing": ["rich_voicing", "rich"],
+    "harmony": ["harmony", "harmony_enhance"],
 }
 
 
@@ -500,6 +502,8 @@ def _build_options(form: Dict[str, Any]):
         "keep_nbs": _to_bool(_pick(form, "keep_nbs"), True),
         "keep_midi": _to_bool(_pick(form, "keep_midi"), True),
         "keep_litematic": _to_bool(_pick(form, "keep_litematic"), True),
+        "rich_voicing": _to_bool(_pick(form, "rich_voicing"), True),
+        "harmony": _to_bool(_pick(form, "harmony"), False),
     }
 
     # 只传 ConvertOptions 真正声明了的字段，避免签名不一致直接 TypeError
