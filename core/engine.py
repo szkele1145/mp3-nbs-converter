@@ -3,7 +3,8 @@
 这个二进制不在安装包里（AGPL-3.0 项目的产物不宜直接打包分发），
 改成运行时按需下载到 ``tools/`` 目录：
   * 存在 → 用它生成与 u-u.life/nbs 完全一致的 litematic
-  * 不存在 → 退回内置的简化排布，界面提示可下载
+  * 不存在 → pipeline 抛 LayoutEngineMissing，由界面询问用户
+             是「下载引擎」还是「接受效果较差的内置排布」
 
 下载地址指向本项目 Release 的镜像产物，来源与协议在 README 里注明。
 """
@@ -13,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import os
 import shutil
+import ssl
 import subprocess
 import tempfile
 import urllib.request
@@ -80,6 +82,27 @@ def _verify(path: Path) -> bool:
     return h.lower() == ENGINE_SHA256.lower()
 
 
+def _ssl_context() -> ssl.SSLContext:
+    """建 SSL 上下文。
+
+    Windows 上证书吊销服务器常常连不上（CRYPT_E_REVOCATION_OFFLINE），
+    导致所有 HTTPS 请求直接失败。这里关掉吊销检查，
+    仍保留证书链校验（MITM 依然会被拦下）。
+    """
+    ctx = ssl.create_default_context()
+    try:
+        ctx.verify_flags &= ~ssl.VERIFY_CRL_CHECK_LEAF
+        ctx.verify_flags &= ~ssl.VERIFY_CRL_CHECK_CHAIN
+    except AttributeError:
+        pass
+    # 部分环境没有 CRL 支持，直接放开吊销相关开关
+    try:
+        ctx.verify_flags = ssl.VERIFY_X509_PARTIAL_CHAIN | ssl.VERIFY_X509_STRICT  # type: ignore[assignment]
+    except (AttributeError, TypeError):
+        pass
+    return ctx
+
+
 def download(progress=None) -> tuple[bool, str]:
     """下载引擎到 tools/。
 
@@ -88,6 +111,7 @@ def download(progress=None) -> tuple[bool, str]:
     """
     dest = engine_path()
     last_err = ""
+    ctx = _ssl_context()
 
     for url in ENGINE_URLS:
         tmp_path = None
@@ -100,7 +124,7 @@ def download(progress=None) -> tuple[bool, str]:
             os.close(fd)
             tmp_path = Path(tmp_name)
 
-            with urllib.request.urlopen(req, timeout=DOWNLOAD_TIMEOUT) as resp:
+            with urllib.request.urlopen(req, timeout=DOWNLOAD_TIMEOUT, context=ctx) as resp:
                 total = int(resp.headers.get("Content-Length") or 0)
                 done = 0
                 with open(tmp_path, "wb") as fh:
