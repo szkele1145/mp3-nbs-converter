@@ -41,6 +41,7 @@ class ConvertOptions:
     song_name: str = ""
     author: str = "mp3-nbs-converter"
     auto_preset: bool = False     # 懒人模式：按音频自动挑参数
+    quantize: bool = True         # 把音符吸附到节拍网格（听感更整齐）
     allow_builtin_layout: bool = False  # 允许退回内置排布（需用户确认）
 
 
@@ -313,6 +314,18 @@ def convert_audio(
 
         if not notes:
             raise ValueError("没有识别到任何音符，请尝试调整起音阈值或更换音频")
+
+        # --- 节拍量化（可选）：把起音吸附到节拍网格 ---
+        if opts.quantize:
+            from . import quantize as _qz
+
+            before = len(notes)
+            notes = _qz.quantize_notes(
+                notes,
+                bpm=opts.tempo_bpm or _qz.estimate_bpm(instrumental, sr),
+                subdivisions=2,
+            )
+            print(f"[量化] {before} → {len(notes)} 个音符（吸附到节拍网格）")
 
     # --- 写伴奏 wav ---
     instrumental_path = None
