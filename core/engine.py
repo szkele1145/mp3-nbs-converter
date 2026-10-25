@@ -35,12 +35,21 @@ DOWNLOAD_TIMEOUT = 180
 
 
 def tools_dir() -> Path:
-    """引擎存放目录。"""
-    from .paths import work_dir
+    """引擎存放目录：优先 exe/项目同级 tools/，不可写时退到用户目录。"""
+    from .paths import app_dir
 
-    d = work_dir().parent / "tools"
-    d.mkdir(parents=True, exist_ok=True)
-    return d
+    d = app_dir() / "tools"
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+        probe = d / ".writable"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+        return d
+    except OSError:
+        # 只读安装位置 → 退到用户目录
+        fallback = Path.home() / ".mp3-nbs-converter" / "tools"
+        fallback.mkdir(parents=True, exist_ok=True)
+        return fallback
 
 
 def engine_path() -> Path:

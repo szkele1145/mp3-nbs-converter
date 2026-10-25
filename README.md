@@ -96,14 +96,30 @@ python run.py --cli song.mp3 -o ./out --threads 8 --high-memory --normal-priorit
 ### Litematica 蓝图
 
 按 **Litematica v6** 格式（gzip 压缩 NBT）写出 `.litematic`，游戏里 `//litematica` 一键加载。
-音符会自动排成音符盒 + 中继器阵列，`wrap` / `gap` / `coarse` 控制排布方式。
 
-> **注意**：这个排布算法是**参考 [nbs-fractal](https://github.com/omninbs/nbs-fractal)
-> 思路的简化实现**，不是逐行移植。生成的阵列能用、能出声，但形状与
-> [u-u.life/nbs](https://u-u.life/nbs/#compact) 的输出**不一致**。
->
-> 想要和在线工具完全一致的结果：先用本工具转出 `.nbs`，再把它传到
-> [u-u.life/nbs](https://u-u.life/nbs/#compact) 生成投影。
+**排布引擎（推荐）**
+
+默认调用 [nbs-fractal](https://github.com/omninbs/nbs-fractal) 生成投影，**结果与
+[u-u.life/nbs](https://u-u.life/nbs/#compact) 完全一致**。引擎不随安装包分发
+（AGPL-3.0），而是按需下载：
+
+- 界面勾选「输出 .litematic」时若检测到缺失，会弹出提示并给一键下载按钮
+- 下载后存到 exe 同级的 `tools/nbs-fractal.exe`
+- 也可以手动放置：把 `nbs-fractal.exe` 放进 `tools/` 目录即可
+
+**内置排布（备选）**
+
+引擎不可用时软件会**询问**你是否改用内置排布：
+
+> ⚠️ 内置排布是参考 nbs-fractal 思路的**简化实现**，效果较差、格式不稳定，
+> 形状与官方输出**不一致**。除非你明确接受，否则建议先下载引擎。
+
+命令行下：不加 `--builtin-layout` 时，缺引擎会直接报错；加了这个开关才用内置排布。
+
+**参数**
+
+`wrap`（每行最大列数）/ `gap`（音轨间距）/ `coarse`（中继器粒度）三个参数
+语义与 nbs-fractal CLI 保持一致，用引擎时行为相同。
 
 ### Web 界面
 FastAPI + 原生 JS 单页应用：
@@ -165,7 +181,10 @@ python run.py --cli song.mp3 -o ./out
 | `--gap <格>` | `0` | 轨道间距 |
 | `--max-seconds <秒>` | `0` | 只转换前 N 秒，0 = 不限 |
 | `--no-nbs` / `--no-midi` / `--no-litematic` | — | 跳过对应产物 |
+| `--auto-preset` | 关 | 懒人模式：按音频自动挑参数 |
+| `--builtin-layout` | 关 | 缺排布引擎时允许用内置实现（效果较差） |
 | `--host` / `--port` | `127.0.0.1:8760` | Web 服务监听地址 |
+| `--no-browser` | 关 | 启动服务时不自动打开浏览器 |
 
 示例：
 

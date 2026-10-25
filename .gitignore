@@ -6,6 +6,9 @@ build/
 # 模型文件（体积大，放到 Release 附件）
 models/*.onnx
 
+# 可选排布引擎（运行时按需下载到 tools/）
+tools/
+
 # 运行时目录
 work/
 output/
