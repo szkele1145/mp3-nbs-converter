@@ -170,6 +170,7 @@ const state = {
   pollTimer: null, // 轮询定时器
   running: false, // 是否正在转换
   lastResult: null, // 最近一次转换结果
+  lazyMode: true, // true = 懒人模式（参数自动），false = 专业模式
 };
 
 /* ------------------------------------------------------------------
@@ -194,6 +195,7 @@ const getParam = (name) => {
 
 /** 把当前界面状态整体同步到隐藏表单 */
 const syncParams = () => {
+  setParam('auto_preset', state.lazyMode ? '1' : '0');
   setParam('separate_vocals', $('toggle-vocal').checked ? '1' : '0');
   setParam('model', $('select-model').value);
   setParam('threads', $('number-threads').value);
@@ -572,6 +574,34 @@ const renderResult = (result) => {
 const bindEvents = () => {
   const dropzone = $('dropzone');
   const fileInput = $('file-input');
+
+  // ---- 懒人 / 专业 模式切换 ----
+  const setMode = (lazy) => {
+    state.lazyMode = lazy;
+    document.body.classList.toggle('lazy-mode', lazy);
+    const lazyBtn = $('mode-lazy');
+    const proBtn = $('mode-pro');
+    if (lazyBtn) {
+      lazyBtn.classList.toggle('is-active', lazy);
+      lazyBtn.setAttribute('aria-selected', lazy ? 'true' : 'false');
+    }
+    if (proBtn) {
+      proBtn.classList.toggle('is-active', !lazy);
+      proBtn.setAttribute('aria-selected', lazy ? 'false' : 'true');
+    }
+    const hint = $('mode-hint');
+    if (hint) {
+      hint.textContent = lazy
+        ? '🪄 懒人模式：根据音乐的节奏密度、动态范围和音色自动挑一组最优参数，你只需要选分离模型。'
+        : '🎛️ 专业模式：所有参数都能手动调，适合有明确效果预期的场景。';
+    }
+    syncParams();
+  };
+  const lazyBtn = $('mode-lazy');
+  const proBtn = $('mode-pro');
+  if (lazyBtn) lazyBtn.addEventListener('click', () => setMode(true));
+  if (proBtn) proBtn.addEventListener('click', () => setMode(false));
+  setMode(true); // 默认懒人模式
 
   // 点击选择
   dropzone.addEventListener('click', () => fileInput.click());

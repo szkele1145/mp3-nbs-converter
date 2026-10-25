@@ -478,6 +478,7 @@ def _build_options(form: Dict[str, Any]):
         "melodia_trick": _to_bool(_pick(form, "melodia_trick"), True),
         "instrument": str(_pick(form, "instrument") or "AUTO"),
         "bass_instrument": str(_pick(form, "bass_instrument") or "AUTO"),
+        "auto_preset": _to_bool(_pick(form, "auto_preset"), False),
         "coarse": _to_int(_pick(form, "coarse"), 0),
         "wrap": _to_int(_pick(form, "wrap"), 0),
         "gap": _to_int(_pick(form, "gap"), 0),

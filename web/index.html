@@ -75,6 +75,24 @@
     <section class="card" id="params-card">
       <h2 class="card-title">⚙️ 转换参数</h2>
 
+      <!-- 模式切换 -->
+      <div class="mode-switch" role="tablist" aria-label="转换模式">
+        <button type="button" class="mode-btn is-active" id="mode-lazy" role="tab" aria-selected="true">
+          <span class="mode-emoji">🪄</span>
+          <span class="mode-title">懒人模式</span>
+          <span class="mode-desc">只选模型，参数自动</span>
+        </button>
+        <button type="button" class="mode-btn" id="mode-pro" role="tab" aria-selected="false">
+          <span class="mode-emoji">🎛️</span>
+          <span class="mode-title">专业模式</span>
+          <span class="mode-desc">手动调所有参数</span>
+        </button>
+      </div>
+
+      <p class="mode-hint" id="mode-hint">
+        🪄 懒人模式：根据音乐的节奏密度、动态范围和音色自动挑一组最优参数，你只需要选分离模型。
+      </p>
+
       <div class="grid-2">
         <!-- 智能去人声 -->
         <div class="field field-wide">
@@ -103,7 +121,7 @@
         </div>
 
         <!-- 推理线程 -->
-        <div class="field">
+        <div class="field pro-only">
           <label class="field-label" for="number-threads">
             <span class="field-hint" id="hint-threads">自动</span>
           </label>
@@ -115,14 +133,14 @@
         </div>
 
         <!-- 只转换前 N 秒 -->
-        <div class="field">
+        <div class="field pro-only">
           <label class="field-label" for="number-max-seconds">只转换前 N 秒（0 = 全部）</label>
           <input type="number" id="number-max-seconds" name="max_seconds" min="0" max="3600" step="5" value="0" />
           <p class="field-desc">先用 30 秒试听效果，满意再转全曲</p>
         </div>
 
         <!-- 起音阈值 -->
-        <div class="field">
+        <div class="field pro-only">
           <label class="field-label" for="range-onset">
             起音阈值 onset threshold
             <span class="field-hint" id="hint-onset">0.50</span>
@@ -135,7 +153,7 @@
         </div>
 
         <!-- 音符最短/最长 -->
-        <div class="field">
+        <div class="field pro-only">
           <label class="field-label" for="range-minlen">
             音符最短/最长 (ms)
             <span class="field-hint" id="hint-minlen">127.7</span>
@@ -148,7 +166,7 @@
         </div>
 
         <!-- 主旋律乐器 -->
-        <div class="field">
+        <div class="field pro-only">
           <label class="field-label" for="select-instrument">主旋律乐器</label>
           <select id="select-instrument" name="instrument">
             <option value="AUTO" selected>🎵 自动匹配（推荐）</option>
@@ -174,7 +192,7 @@
         </div>
 
         <!-- 低音轨乐器 -->
-        <div class="field">
+        <div class="field pro-only">
           <label class="field-label" for="select-bass">低音轨乐器</label>
           <select id="select-bass" name="bass_instrument">
             <option value="AUTO" selected>🎵 自动匹配（推荐）</option>
@@ -200,7 +218,7 @@
         </div>
 
         <!-- 中继器粒度 -->
-        <div class="field">
+        <div class="field pro-only">
           <label class="field-label" for="select-coarse">中继器粒度 coarse</label>
           <select id="select-coarse" name="coarse">
             <option value="0">0 · 不限（不拆分中继器）</option>
@@ -213,14 +231,14 @@
         </div>
 
         <!-- 每行最大列数 -->
-        <div class="field">
+        <div class="field pro-only">
           <label class="field-label" for="number-wrap">每行最大列数 wrap</label>
           <input type="number" id="number-wrap" name="wrap" min="0" max="64" step="1" value="0" />
           <p class="field-desc">0 = 不换行，单行垂直向右延伸。</p>
         </div>
 
         <!-- 轨道间距 -->
-        <div class="field">
+        <div class="field pro-only">
           <label class="field-label" for="number-gap">轨道间距 gap</label>
           <input type="number" id="number-gap" name="gap" min="0" max="64" step="1" value="0" />
           <p class="field-desc">相邻轨道之间留出的空隙（方块）。</p>

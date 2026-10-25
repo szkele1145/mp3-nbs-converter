@@ -40,6 +40,7 @@ class ConvertOptions:
     tempo_bpm: float = 0.0        # 0 = 由音频时长估算
     song_name: str = ""
     author: str = "mp3-nbs-converter"
+    auto_preset: bool = False     # 懒人模式：按音频自动挑参数
 
 
 @dataclass
@@ -259,7 +260,27 @@ def convert_audio(
         melody_notes = []
         bass_notes = []
         bpm = 120.0
+        preset_coarse = opts.coarse
+        preset_reason = ""
     else:
+        # --- 懒人模式：按音频自动挑参数 ---
+        onset_th = opts.onset_threshold
+        frame_th = opts.frame_threshold
+        min_note = opts.min_note_ms
+        preset_coarse = opts.coarse
+        preset_reason = ""
+        if opts.auto_preset:
+            from . import presets
+
+            feat = presets.analyze(instrumental, sr)
+            sug = presets.suggest_options(feat)
+            preset_reason = sug.pop("_reason", "")
+            onset_th = float(sug.get("onset_threshold", onset_th))
+            frame_th = float(sug.get("frame_threshold", frame_th))
+            min_note = float(sug.get("min_note_ms", min_note))
+            preset_coarse = int(sug.get("coarse", preset_coarse))
+            print(f"[自动预设] {preset_reason}")
+
         # --- 音高识别 ---
         report("识别音高", 0.34)
         from .transcribe import transcribe
@@ -268,9 +289,9 @@ def convert_audio(
             instrumental,
             sr,
             prefer_model=True,
-            onset_threshold=opts.onset_threshold,
-            frame_threshold=opts.frame_threshold,
-            minimum_note_length_ms=opts.min_note_ms,
+            onset_threshold=onset_th,
+            frame_threshold=frame_th,
+            minimum_note_length_ms=min_note,
             melodia_trick=opts.melodia_trick,
         )
         notes = transcription.notes
@@ -296,6 +317,19 @@ def convert_audio(
     bpm = opts.tempo_bpm if opts.tempo_bpm > 0 else _estimate_bpm(duration, notes)
 
     bass_notes, melody_notes = _split_tracks(notes, opts.bass_split_midi)
+
+    # 低音轨占比过高时（超过 60%）说明切分阈值不合适，按实际音高分布重切，
+    # 否则旋律会被抽干成两三个音。
+    # 只在懒人模式下自动修正；专业模式尊重用户设的阈值。
+    if opts.auto_preset and notes and len(bass_notes) > len(notes) * 0.6:
+        import numpy as _np
+
+        midis = _np.array([int(n.midi) for n in notes], dtype=_np.int32)
+        # 取 35 % 分位作为新阈值，保证低音轨不超过约 35 %
+        p35 = int(_np.percentile(midis, 35))
+        if abs(p35 - opts.bass_split_midi) >= 2:
+            bass_notes, melody_notes = _split_tracks(notes, p35)
+            print(f"[音轨切分] 低音过多，阈值 {opts.bass_split_midi} → {p35}")
 
     # 乐器自动匹配：用户选 AUTO（或默认 HARP 未显式指定）时按音域和音色倾向自动挑
     auto_inst = opts.instrument.strip().upper() in ("", "AUTO", "自动")
@@ -411,12 +445,12 @@ def convert_audio(
         if mel_layout:
             blocks.update(
                 cl.build_compact_blocks(
-                    mel_layout, coarse=opts.coarse, wrap=opts.wrap, gap=opts.gap
+                    mel_layout, coarse=preset_coarse, wrap=opts.wrap, gap=opts.gap
                 )
             )
         if bass_layout:
             bass_blocks = cl.build_compact_blocks(
-                bass_layout, coarse=opts.coarse, wrap=opts.wrap, gap=opts.gap
+                bass_layout, coarse=preset_coarse, wrap=opts.wrap, gap=opts.gap
             )
             # 低音轨沿 z 轴偏移，避免与主旋律重叠
             off_z = (max((p[2] for p in blocks), default=0) + 4) if blocks else 0
@@ -446,6 +480,9 @@ def convert_audio(
         "bpm": round(bpm, 1),
         "instrument": main_inst,
         "bass_instrument": bass_inst,
+        "auto_preset": bool(opts.auto_preset),
+        "preset_reason": preset_reason,
+        "preset_onset": round(onset_th, 2) if not opts.auto_preset else None,
         "blocks": len(blocks) if opts.keep_litematic else 0,
         "elapsed": round(time.time() - t_start, 2),
         "sample_rate": sr,

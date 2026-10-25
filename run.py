@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 from pathlib import Path
 
 PROJ_ROOT = Path(__file__).resolve().parent
@@ -41,6 +42,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("-o", "--output", metavar="目录", default="output", help="输出目录（默认 output）")
     p.add_argument("--host", default="127.0.0.1", help="Web 服务监听地址（默认 127.0.0.1）")
     p.add_argument("--port", type=int, default=8760, help="Web 服务端口（默认 8760）")
+    p.add_argument("--no-browser", action="store_true", help="启动服务时不自动打开浏览器")
+    p.add_argument("--auto-preset", action="store_true",
+                   help="懒人模式：按音频自动挑起音阈值/帧阈值/最短音符/粒度")
     p.add_argument("--no-vocals", action="store_true", help="不去人声，直接用原始音频")
     p.add_argument("--model", default="htdemucs_ft_vocals",
                    help="人声分离模型：htdemucs_ft_vocals（质量最好）/ htdemucs / UVR_MDXNET_Main（最省内存 1.5GB）")
@@ -106,6 +110,7 @@ def _run_cli(args: argparse.Namespace) -> int:
         keep_midi=not args.no_midi,
         keep_litematic=not args.no_litematic,
         song_name=src.stem,
+        auto_preset=args.auto_preset,
     )
 
     last_stage = ""
@@ -152,19 +157,37 @@ def _run_cli(args: argparse.Namespace) -> int:
     return 0
 
 
+def _open_browser_later(url: str, delay: float = 1.5) -> None:
+    """服务起来后再开浏览器，避免打开时页面还没就绪。"""
+    import threading
+    import webbrowser
+
+    def _open() -> None:
+        time.sleep(delay)
+        try:
+            webbrowser.open(url)
+        except Exception:  # noqa: BLE001 —— 打不开浏览器不影响服务
+            pass
+
+    threading.Thread(target=_open, daemon=True).start()
+
+
 def _run_web(args: argparse.Namespace) -> int:
     import uvicorn
 
     from web.server import app
 
+    url = f"http://{args.host}:{args.port}"
     banner = f"""
   ╭──────────────────────────────────────────────╮
   │   MP3 → 音符盒转换器 · Web 服务已启动          │
   ╰──────────────────────────────────────────────╯
-    地址：http://{args.host}:{args.port}
+    地址：{url}
     按 Ctrl+C 停止
 """
     print(banner)
+    if not getattr(args, "no_browser", False):
+        _open_browser_later(url)
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
     return 0
 
