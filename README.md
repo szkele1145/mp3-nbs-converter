@@ -93,9 +93,17 @@ python run.py --cli song.mp3 -o ./out --threads 8 --high-memory --normal-priorit
 移植 **Spotify basic-pitch**（ONNX 版 `nmp.onnx`），后处理严格对齐官方实现：
 帧概率 → 音符拼接 → 起音/帧双重阈值 → 最短音符过滤。
 
-### 紧凑布局 + Litematica 蓝图
-移植 **nbs-fractal** 的紧凑布局算法，把音符自动排成最小的音符盒阵列，
-再按 **Litematica v6** 格式写出 `.litematic`，游戏里 `//litematica` 一键加载。
+### Litematica 蓝图
+
+按 **Litematica v6** 格式（gzip 压缩 NBT）写出 `.litematic`，游戏里 `//litematica` 一键加载。
+音符会自动排成音符盒 + 中继器阵列，`wrap` / `gap` / `coarse` 控制排布方式。
+
+> **注意**：这个排布算法是**参考 [nbs-fractal](https://github.com/omninbs/nbs-fractal)
+> 思路的简化实现**，不是逐行移植。生成的阵列能用、能出声，但形状与
+> [u-u.life/nbs](https://u-u.life/nbs/#compact) 的输出**不一致**。
+>
+> 想要和在线工具完全一致的结果：先用本工具转出 `.nbs`，再把它传到
+> [u-u.life/nbs](https://u-u.life/nbs/#compact) 生成投影。
 
 ### Web 界面
 FastAPI + 原生 JS 单页应用：
@@ -195,7 +203,7 @@ mp3-nbs-converter/
 │   ├── vocal_separate.py   # HTDemucs / MDX-NET 人声分离
 │   ├── nbs_writer.py       # NBS v5 写出（含同 tick 同层冲突消解）
 │   ├── midi_writer.py      # MIDI 写出
-│   ├── compact_layout.py   # nbs-fractal 紧凑布局 + Litematica 蓝图
+│   ├── compact_layout.py   # 音符盒阵列排布 + Litematica 蓝图写出
 │   ├── nbt.py              # Minecraft NBT 序列化
 │   ├── pipeline.py         # 端到端流水线
 │   └── paths.py            # 源码/打包双模式路径解析
@@ -283,7 +291,7 @@ A: 能。全部模型本地推理，不联网。
 | HTDemucs v4 | [facebookresearch/demucs](https://github.com/facebookresearch/demucs)（MIT），ONNX 导出参考 [StemSplit/demucs-onnx](https://github.com/StemSplit/demucs-onnx) | MIT |
 | basic-pitch | [spotify/basic-pitch](https://github.com/spotify/basic-pitch) | Apache-2.0 |
 | UVR MDX-NET | [UVR5](https://github.com/Anjok07/ultimatevocalremover5) 模型权重 | MIT（代码）/ 模型遵循其声明 |
-| nbs-fractal | 紧凑布局算法移植 | AGPL-3.0 |
+| nbs-fractal | 排布算法参考（简化实现，非移植） | AGPL-3.0 |
 | rustmatica | Litematica 格式参考 | MIT |
 | NBS 格式 | [Note Block Studio](https://opennbs.org/) / [pynbs](https://github.com/OpenNBS/pynbs) | MIT |
 
