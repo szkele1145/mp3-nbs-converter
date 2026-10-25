@@ -1,11 +1,28 @@
 # 🎵 MP3 → 音符盒转换器
 
+[![Release](https://img.shields.io/github/v/release/szkele1145/mp3-nbs-converter?label=Release&color=blue)](https://github.com/szkele1145/mp3-nbs-converter/releases/latest)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](requirements.txt)
+[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](installer.iss)
+
 一键把歌曲（MP3 / WAV / M4A / FLAC / OGG / AAC）转成 **Minecraft 音符盒**作品：
 
 - **`.nbs`** — Note Block Studio 歌曲文件，可直接导入 [u-u.life/nbs 在线编辑器](https://u-u.life/nbs/#compact)
 - **`.midi`** — 标准 MIDI 文件，导入任何 DAW 或音符盒工具
 - **`.litematic`** — Litematica 蓝图，游戏内直接放置音符盒阵列
 - **伴奏 `.wav`** — 智能去人声后的纯伴奏音频
+
+## 📥 下载
+
+去 **[Releases 页面](https://github.com/szkele1145/mp3-nbs-converter/releases/latest)** 下载：
+
+| 附件 | 说明 |
+|---|---|
+| `MP3NBS-Setup.exe` | Windows 安装包，双击安装，**启动约 1 秒** |
+| `MP3NBS-Portable.zip` | 免安装版，解压即用 |
+
+> 附件里已经内置全部模型（约 380 MB），**不用另外下载模型**。
+> 想换模型？把新的 `.onnx` 放到 exe 同级的 `models/` 目录即可。
 
 ## ⚡ 资源占用（重要）
 
@@ -91,26 +108,26 @@ FastAPI + 原生 JS 单页应用：
 
 ## 🚀 快速开始
 
-### 方式一：安装包（推荐，启动最快）
+### 方式一：安装包（推荐）
 
-1. 运行 `MP3NBS转换器_安装包.exe`
-2. 装好后从开始菜单或桌面启动（安装版是目录形式，**启动 1-2 秒**）
+1. 从 [Releases](https://github.com/szkele1145/mp3-nbs-converter/releases/latest) 下载 `MP3NBS-Setup.exe`
+2. 双击安装（中文界面），装好后从开始菜单或桌面启动
 3. 浏览器自动打开 <http://127.0.0.1:8760>，拖入 MP3，点「开始转换」
 
-### 方式二：单文件 exe（免安装）
+安装版是目录形式，**启动约 1 秒**。
 
-1. 下载 `MP3NBS转换器.exe`（约 500 MB，含全部模型）
-2. 双击运行
+### 方式二：便携版（免安装）
+
+1. 下载 `MP3NBS-Portable.zip` 并解压
+2. 双击 `MP3NBS转换器.exe`
 3. 浏览器打开 <http://127.0.0.1:8760>
-
-> 单文件版每次启动要先解包到临时目录，**约 8 秒**；装到常用环境建议用安装包版。
->
-> 想换模型？把新的 `.onnx` 放到 exe 同级的 `models/` 目录即可。
 
 ### 方式三：源码运行
 
 ```bash
 # Python 3.10+（开发环境 3.14）
+git clone https://github.com/szkele1145/mp3-nbs-converter.git
+cd mp3-nbs-converter
 pip install -r requirements.txt
 
 # Web 界面
@@ -119,6 +136,9 @@ python run.py
 # 命令行转换
 python run.py --cli song.mp3 -o ./out
 ```
+
+> 源码运行时需要自己准备模型文件，见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+> Release 附件里已经内置全部模型，不用管这些。
 
 ## 🖥️ 命令行参数
 
@@ -131,8 +151,8 @@ python run.py --cli song.mp3 -o ./out
 | `--onset <0-1>` | `0.5` | 起音阈值，越大漏检越多、音符越稀 |
 | `--frame <0-1>` | `0.3` | 帧阈值 |
 | `--min-note-ms <毫秒>` | `127.7` | 音符最短时长 |
-| `--instrument <名>` | `HARP` | 主旋律乐器（HARP/PIANO/FLUTE/BELL/GUITAR/…）|
-| `--bass-instrument <名>` | `DOUBLE_BASS` | 低音轨乐器 |
+| `--instrument <名>` | `AUTO` | 主旋律乐器，AUTO = 按音域自动匹配 |
+| `--bass-instrument <名>` | `AUTO` | 低音轨乐器，AUTO = 按音域自动匹配 |
 | `--wrap <列数>` | `0` | 每行最大列数，0 = 不限 |
 | `--gap <格>` | `0` | 轨道间距 |
 | `--max-seconds <秒>` | `0` | 只转换前 N 秒，0 = 不限 |
@@ -242,8 +262,8 @@ A: 确认用的是 NBS 2.x 或 [u-u.life/nbs](https://u-u.life/nbs/)（v5 格式
 NBS 的字符串字段是 cp1252，**中文曲名无法写入**（会被丢弃），建议用英文曲名。
 
 **Q: exe 启动很慢？**
-A: 用**安装包版或便携 ZIP**（目录版，启动约 1 秒）。单文件 exe 每次启动要解包
-约 520 MB 到临时目录，实测冷启动 2-3 分钟，不推荐。
+A: 用**安装包版或便携 ZIP**（都是目录版，启动约 1 秒）。
+单文件 exe 每次启动要解包约 520 MB 到临时目录，实测冷启动 2-3 分钟，**本项目不提供**。
 
 **Q: 转换时内存占用太高影响游戏？**
 A: 切到 **🎮 游戏模式**（`UVR_MDXNET_Main` + 2 线程），内存从 4.6 GB 降到 1.5 GB。

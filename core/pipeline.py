@@ -27,8 +27,8 @@ class ConvertOptions:
     frame_threshold: float = 0.3
     min_note_ms: float = 127.7
     melodia_trick: bool = True
-    instrument: str = "HARP"
-    bass_instrument: str = "DOUBLE_BASS"
+    instrument: str = "AUTO"
+    bass_instrument: str = "AUTO"
     coarse: int = 0
     wrap: int = 0
     gap: int = 0
@@ -139,6 +139,30 @@ def _split_tracks(notes, bass_split_midi: int):
     for n in notes:
         (bass if n.midi < bass_split_midi else melody).append(n)
     return bass, melody
+
+
+def _pick_instrument(notes, is_bass: bool) -> str:
+    """按音域和音色倾向自动挑乐器。
+
+    低音轨固定用 DOUBLE_BASS / BASS；主旋律按中位音高选：
+    低音区→吉他，中音区→竖琴，中高音→钢琴，高音→长笛。
+    """
+    if not notes:
+        return "DOUBLE_BASS" if is_bass else "HARP"
+    if is_bass:
+        # 低音轨：最低音越低，越倾向用大提琴/贝斯
+        lowest = min(int(n.midi) for n in notes)
+        return "DOUBLE_BASS" if lowest < 45 else "BASS"
+
+    midis = sorted(int(n.midi) for n in notes)
+    median = midis[len(midis) // 2]
+    if median < 55:
+        return "GUITAR"
+    if median < 67:
+        return "HARP"
+    if median < 79:
+        return "PIANO"
+    return "FLUTE"
 
 
 def _to_layout_notes(notes, instrument: str):
@@ -272,8 +296,18 @@ def convert_audio(
     bpm = opts.tempo_bpm if opts.tempo_bpm > 0 else _estimate_bpm(duration, notes)
 
     bass_notes, melody_notes = _split_tracks(notes, opts.bass_split_midi)
-    main_inst = nbs_writer.normalize_instrument(opts.instrument)
-    bass_inst = nbs_writer.normalize_instrument(opts.bass_instrument)
+
+    # 乐器自动匹配：用户选 AUTO（或默认 HARP 未显式指定）时按音域和音色倾向自动挑
+    auto_inst = opts.instrument.strip().upper() in ("", "AUTO", "自动")
+    auto_bass = opts.bass_instrument.strip().upper() in ("", "AUTO", "自动")
+    if auto_inst:
+        main_inst = _pick_instrument(melody_notes, is_bass=False)
+    else:
+        main_inst = nbs_writer.normalize_instrument(opts.instrument)
+    if auto_bass:
+        bass_inst = _pick_instrument(bass_notes, is_bass=True)
+    else:
+        bass_inst = nbs_writer.normalize_instrument(opts.bass_instrument)
 
     # --- NBS ---
     nbs_path = None
