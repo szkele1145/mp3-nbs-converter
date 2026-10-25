@@ -161,7 +161,12 @@ def download(progress=None) -> tuple[bool, str]:
                 except OSError:
                     pass
 
-    return False, f"下载失败：{last_err or '没有可用的下载源'}"
+    return False, (
+        f"下载失败：{last_err or '没有可用的下载源'}\n"
+        "可以手动安装：\n"
+        "  · 装好 Rust 后执行：cargo install nbs-fractal\n"
+        f"  · 然后把 nbs-fractal.exe 放进：{tools_dir()}"
+    )
 
 
 def run_compact(

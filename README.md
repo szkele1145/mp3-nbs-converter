@@ -101,18 +101,41 @@ python run.py --cli song.mp3 -o ./out --threads 8 --high-memory --normal-priorit
 
 默认调用 [nbs-fractal](https://github.com/omninbs/nbs-fractal) 生成投影，**结果与
 [u-u.life/nbs](https://u-u.life/nbs/#compact) 完全一致**。引擎不随安装包分发
-（AGPL-3.0），而是按需下载：
+（AGPL-3.0），而是按需获取：
 
-- 界面勾选「输出 .litematic」时若检测到缺失，会弹出提示并给一键下载按钮
-- 下载后存到 exe 同级的 `tools/nbs-fractal.exe`
-- 也可以手动放置：把 `nbs-fractal.exe` 放进 `tools/` 目录即可
+**方式一：一键下载**
+
+界面里勾选「输出 .litematic」时若检测到缺失，会弹出提示并给下载按钮，
+文件存到 exe 同级的 `tools/nbs-fractal.exe`。
+
+**方式二：自己编译（最可靠）**
+
+`nbs-fractal` 已发布到 [crates.io](https://crates.io/crates/nbs-fractal)，
+装了 Rust 后一条命令就能编：
+
+```bash
+# 1. 安装 Rust（Windows）
+winget install Rustlang.Rustup
+# 或者从 https://rustup.rs 下载安装器
+
+# 2. 编译并安装
+cargo install nbs-fractal --root ./tools
+
+# 3. 编好的程序在 tools/bin/nbs-fractal.exe
+#    把它移到 tools/ 目录下即可
+move tools\bin\nbs-fractal.exe tools\
+```
+
+**方式三：手动放置**
+
+有别人给你的 `nbs-fractal.exe`，直接丢进 `tools/` 目录就行。
 
 **内置排布（备选）**
 
 引擎不可用时软件会**询问**你是否改用内置排布：
 
 > ⚠️ 内置排布是参考 nbs-fractal 思路的**简化实现**，效果较差、格式不稳定，
-> 形状与官方输出**不一致**。除非你明确接受，否则建议先下载引擎。
+> 形状与官方输出**不一致**。除非你明确接受，否则建议先装好引擎。
 
 命令行下：不加 `--builtin-layout` 时，缺引擎会直接报错；加了这个开关才用内置排布。
 
