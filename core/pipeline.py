@@ -43,6 +43,7 @@ class ConvertOptions:
     auto_preset: bool = False     # 懒人模式：按音频自动挑参数
     quantize: bool = True         # 把音符吸附到节拍网格（听感更整齐）
     multi_part: bool = True       # 多声部转录：四源分离后各配音色，乐器更多、每 tick 更密
+    harmony: bool = False         # 和声增强：给音符叠五度/八度，密度更高但可能不准
     allow_builtin_layout: bool = False  # 允许退回内置排布（需用户确认）
 
 
@@ -323,7 +324,18 @@ def convert_audio(
 
         if parts_result:
             note_parts = parts_result
-            notes = [n for _, ns in parts_result for n in ns]
+            # 和声增强：给主旋律叠五度/八度，把每 tick 的音数再拉高
+            if opts.harmony:
+                from . import parts as _parts2
+
+                mel = [ns for pn, ns in note_parts if pn in ("vocals", "other")]
+                merged = [n for sub in mel for n in sub]
+                extra = _parts2.enrich_harmony(merged)
+                if extra:
+                    add = sum(len(v) for _, v in extra)
+                    note_parts = note_parts + extra
+                    print(f"[和声增强] 补了 {add} 个和声音符")
+            notes = [n for _, ns in note_parts for n in ns]
             transcription = type("T", (), {"notes": notes, "source": "multi-part"})()
         else:
             transcription = transcribe(
@@ -411,7 +423,9 @@ def convert_audio(
             used_insts: list[str] = []
             for pname, pnotes in note_parts:
                 band_inst = _parts.band_instrument(pname)
-                inst = band_inst or _parts.pick_part_instrument(pname, pnotes)
+                harm_inst = _parts.harmony_instrument(pname)
+                inst = (band_inst or harm_inst
+                        or _parts.pick_part_instrument(pname, pnotes))
                 used_insts.append(inst)
                 is_drum = band_inst is not None
                 # 打击类固定用一个音高（鼓在音乐里没有音高概念），

@@ -195,6 +195,59 @@ def part_label(part_name: str) -> str:
     return part_name
 
 
+#: 和声增强用的音程（相对根音的半音数）与乐器
+HARMONY_STACK = [
+    (7, "BELL"),        # 纯五度
+    (12, "PLING"),      # 八度
+]
+
+
+def enrich_harmony(notes: list, max_extra_per_tick: int = 3) -> list[tuple[str, list]]:
+    """给音符叠和声，提高每 tick 的音符密度。
+
+    ⚠️ 这是「算式补音」，不是从音频里听出来的真实声部：
+    给每个音叠加五度和八度，听感会更厚，但不保证符合原曲和声。
+    只保留在音域范围内的结果，避免炸音。
+
+    返回 [(声部名, 音符列表)]，可直接并进多声部列表。
+    """
+    if not notes:
+        return []
+
+    # 按 tick 分组，控制每 tick 最多补几个，防止糊成一片
+    by_tick: dict[int, list] = {}
+    for n in notes:
+        by_tick.setdefault(int(round(float(n.start) * 10)), []).append(n)
+
+    out: dict[str, list] = {}
+    for tick, group in by_tick.items():
+        # 每 tick 只给最强的那个音补和声
+        strongest = max(group, key=lambda n: float(n.velocity or 0.5))
+        added = 0
+        for interval, inst in HARMONY_STACK:
+            if added >= max_extra_per_tick:
+                break
+            new_midi = int(strongest.midi) + interval
+            if new_midi > 96:      # 超出音符盒音域就不加
+                continue
+            note = type("H", (), {})()
+            note.start = strongest.start
+            note.duration = strongest.duration
+            note.midi = new_midi
+            note.velocity = float(strongest.velocity or 0.5) * 0.65   # 和声弱一些
+            out.setdefault(f"harmony_{inst}", []).append(note)
+            added += 1
+
+    return [(k, v) for k, v in out.items() if v]
+
+
+def harmony_instrument(part_name: str) -> str | None:
+    """harmony_XXX 形式返回 XXX。"""
+    if part_name.startswith("harmony_"):
+        return part_name.split("_", 1)[1]
+    return None
+
+
 def pick_part_instrument(name: str, notes: list) -> str:
     """给某个声部选乐器：按音域在中位音高附近挑候选里最合适的。"""
     from . import nbs_writer
