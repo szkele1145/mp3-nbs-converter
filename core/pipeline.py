@@ -42,6 +42,7 @@ class ConvertOptions:
     author: str = "mp3-nbs-converter"
     auto_preset: bool = False     # 懒人模式：按音频自动挑参数
     quantize: bool = True         # 把音符吸附到节拍网格（听感更整齐）
+    multi_part: bool = True       # 多声部转录：四源分离后各配音色，乐器更多、每 tick 更密
     allow_builtin_layout: bool = False  # 允许退回内置排布（需用户确认）
 
 
@@ -274,6 +275,7 @@ def convert_audio(
         notes = []
         melody_notes = []
         bass_notes = []
+        note_parts = None
         bpm = 120.0
         preset_coarse = opts.coarse
         preset_reason = ""
@@ -300,16 +302,41 @@ def convert_audio(
         report("识别音高", 0.34)
         from .transcribe import transcribe
 
-        transcription = transcribe(
-            instrumental,
-            sr,
-            prefer_model=True,
-            onset_threshold=onset_th,
-            frame_threshold=frame_th,
-            minimum_note_length_ms=min_note,
-            melodia_trick=opts.melodia_trick,
-        )
-        notes = transcription.notes
+        # 多声部模式：四源分离后每个源单独转录，音色更丰富、每 tick 更密
+        parts_result = None
+        if opts.multi_part:
+            from . import parts as _parts
+
+            print("[多声部] 分离 drums/bass/other/vocals 并分别转录…")
+            parts_result = _parts.transcribe_parts(
+                instrumental, sr,
+                onset_threshold=onset_th,
+                frame_threshold=frame_th,
+                min_note_ms=min_note,
+            )
+            if parts_result:
+                total_n = sum(len(ns) for _, ns in parts_result)
+                desc = " / ".join(f"{_parts.part_label(k)}{len(ns)}" for k, ns in parts_result)
+                print(f"[多声部] {len(parts_result)} 个声部，共 {total_n} 个音符（{desc}）")
+            else:
+                print("[多声部] 四源模型不可用，退回单旋律转录")
+
+        if parts_result:
+            note_parts = parts_result
+            notes = [n for _, ns in parts_result for n in ns]
+            transcription = type("T", (), {"notes": notes, "source": "multi-part"})()
+        else:
+            transcription = transcribe(
+                instrumental,
+                sr,
+                prefer_model=True,
+                onset_threshold=onset_th,
+                frame_threshold=frame_th,
+                minimum_note_length_ms=min_note,
+                melodia_trick=opts.melodia_trick,
+            )
+            notes = transcription.notes
+            note_parts = None
         report("识别音高", 0.68)
 
         if not notes:
@@ -376,7 +403,40 @@ def convert_audio(
         report("生成音符盒", 0.74)
         tracks: list[nbs_writer.Track] = []
         # NBS tick = 游戏刻 / 2（10 tick/秒 vs 20 刻/秒）
-        if melody_notes:
+
+        if note_parts:
+            # 多声部：每个声部独立成轨、各配一种乐器
+            from . import parts as _parts
+
+            used_insts: list[str] = []
+            for pname, pnotes in note_parts:
+                band_inst = _parts.band_instrument(pname)
+                inst = band_inst or _parts.pick_part_instrument(pname, pnotes)
+                used_insts.append(inst)
+                is_drum = band_inst is not None
+                # 打击类固定用一个音高（鼓在音乐里没有音高概念），
+                # 旋律类才按 MIDI 折叠到音符盒音域。
+                drum_key = 45   # 音符盒中音区，做打击音色足够
+                tracks.append(
+                    nbs_writer.Track(
+                        pname if is_drum else _parts.part_label(pname),
+                        [
+                            nbs_writer.Note(
+                                tick=int(round(n.start * NBS_TICKS_PER_SEC)),
+                                layer=len(tracks),
+                                key=drum_key if is_drum else cl.fold_to_nbs_range(int(n.midi)),
+                                velocity=max(1, min(127, int(round((n.velocity or 0.7) * 100)))),
+                                instrument=inst,
+                            )
+                            for n in pnotes
+                        ],
+                    )
+                )
+            if used_insts:
+                main_inst = used_insts[-1]     # 主旋律声部（vocals）通常最后
+                bass_inst = used_insts[0] if used_insts[0] != main_inst else used_insts[1] if len(used_insts) > 1 else main_inst
+
+        elif melody_notes:
             tracks.append(
                 nbs_writer.Track(
                     "主旋律",
